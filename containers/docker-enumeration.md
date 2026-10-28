@@ -1,11 +1,8 @@
 # Docker Enumeration
 
-This note provides a practical workflow for inspecting Docker containers from a host where the current user can run Docker commands. It covers container discovery, exposed ports, environment variables, networks, processes, logs, mounts, and image configuration.
-
-> [!WARNING]
-> Access to the Docker daemon often provides root-equivalent control over the host. Use these commands only in an authorized environment, and avoid modifying or restarting production containers unnecessarily.
-
 ## 1. List Running and Stopped Containers
+
+**Run on the Docker Host.**
 
 List running containers:
 
@@ -19,7 +16,7 @@ List every container, including stopped containers:
 docker ps -a
 ```
 
-Use a readable table:
+Display the results in a readable table:
 
 ```bash
 docker ps -a --format 'table {{.ID}}\t{{.Names}}\t{{.Status}}\t{{.Image}}\t{{.Ports}}'
@@ -27,34 +24,40 @@ docker ps -a --format 'table {{.ID}}\t{{.Names}}\t{{.Status}}\t{{.Image}}\t{{.Po
 
 Important columns:
 
-| Column | Meaning |
-| --- | --- |
-| `ID` | Container identifier |
-| `Names` | Human-readable container name |
-| `Status` | Whether the container is running, exited, restarting, or in another state |
-| `Image` | Image used to create the container |
-| `Ports` | Published host-to-container port mappings |
+|Column|Meaning|
+|---|---|
+|`ID`|Container identifier|
+|`Names`|Human-readable container name|
+|`Status`|Running, exited, restarting, and so on|
+|`Image`|Image used to create the container|
+|`Ports`|Published host-to-container port mappings|
 
-Begin with `docker ps -a`, not only `docker ps`. A stopped container can still contain valuable configuration, application data, logs, or credentials.
+Start by identifying running and stopped containers, their images, and any exposed ports. Container names and images can provide useful clues about the applications and services running on the host.
 
 ## 2. Identify the Container Publishing a Port
 
-Find the running container exposing host port `8091`:
+**Run on the Docker Host.**
+
+Find running containers publishing host port `8091`:
 
 ```bash
 docker ps --filter publish=8091 \
   --format 'table {{.ID}}\t{{.Names}}\t{{.Status}}\t{{.Image}}\t{{.Ports}}'
 ```
 
-Display all port mappings for one container:
+Display all port mappings for a specific container:
 
 ```bash
 docker port NAME
 ```
 
-A published port maps a port on the Docker host to a port inside a container. Remember that a service may also listen only on a Docker network and therefore not appear as a published host port.
+Replace `NAME` with the container name or ID.
+
+Port mappings help identify which container serves a particular host port and which internal container port receives the traffic.
 
 ## 3. Inspect a Container
+
+**Run on the Docker Host.**
 
 Display all container metadata as JSON:
 
@@ -62,14 +65,14 @@ Display all container metadata as JSON:
 docker inspect NAME
 ```
 
-Display only useful state information:
+Display the most useful state information:
 
 ```bash
 docker inspect NAME --format \
   'Name={{.Name}} Status={{.State.Status}} Running={{.State.Running}} PID={{.State.Pid}} Image={{.Config.Image}}'
 ```
 
-Check whether it is running:
+Check whether the container is running:
 
 ```bash
 docker inspect NAME --format '{{.State.Running}}'
@@ -81,9 +84,11 @@ Get the host PID of the container's main process:
 docker inspect NAME --format '{{.State.Pid}}'
 ```
 
-The host PID is useful when comparing what Docker reports with host-level process, namespace, or filesystem information.
+The host PID can help correlate a container with processes visible from the Docker host. Remember that container process IDs and host process IDs can differ because of PID namespaces.
 
 ## 4. Extract Environment Variables
+
+**Run on the Docker Host.**
 
 Display every environment variable configured for a container:
 
@@ -91,35 +96,35 @@ Display every environment variable configured for a container:
 docker inspect NAME --format '{{range .Config.Env}}{{println .}}{{end}}'
 ```
 
-Search only for potentially sensitive variables:
+Search for potentially sensitive variables:
 
 ```bash
 docker inspect NAME --format '{{range .Config.Env}}{{println .}}{{end}}' |
 grep -iE 'user|pass|secret|token|key|database|db_|url|host|port'
 ```
 
-Environment variables often reveal database connection strings, service endpoints, API tokens, usernames, or passwords. They are not the only possible secret location: also check mounted configuration files, Docker secrets, application files, command arguments, and logs.
+Environment variables may reveal database credentials, API tokens, service endpoints, usernames, or other configuration details.
+
+They are not the only possible source of sensitive information. Also inspect mounted configuration files, Docker secrets, application files, command arguments, and logs where relevant.
 
 ## 5. Retrieve Container IP Addresses
 
-Simple form when the container belongs to one network:
+**Run on the Docker Host.**
+
+Display the container IP addresses:
 
 ```bash
 docker inspect NAME \
   --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}'
 ```
 
-Display every network and address:
+This compact form works for quick checks, but it does not identify which network each address belongs to.
+
+Display every attached network and its IP address:
 
 ```bash
 docker inspect NAME --format \
   '{{range $name, $network := .NetworkSettings.Networks}}{{$name}} {{$network.IPAddress}}{{println}}{{end}}'
-```
-
-Inspect the default Docker bridge and all attached containers:
-
-```bash
-docker network inspect bridge
 ```
 
 List Docker networks:
@@ -128,26 +133,38 @@ List Docker networks:
 docker network ls
 ```
 
-Containers on the same user-defined network can normally communicate using container or service names, even when their ports are not exposed on the host.
+Inspect the default Docker bridge and its attached containers:
+
+```bash
+docker network inspect bridge
+```
+
+Container IP addresses are useful when mapping communication between containers or identifying services that may be reachable from another container or the host.
 
 ## 6. Inspect Processes and Listening Ports
 
-List processes inside the container:
+**Run on the Docker Host.**
+
+List processes running inside a container:
 
 ```bash
 docker top NAME
 ```
 
-Check listening TCP ports inside it:
+Check listening TCP ports from inside the container:
 
 ```bash
 docker exec NAME sh -c \
   'ss -lntp 2>/dev/null || netstat -lntp 2>/dev/null || cat /proc/net/tcp'
 ```
 
-The fallback chain accounts for minimal images that do not include `ss` or `netstat`. Reading `/proc/net/tcp` is less convenient, but it can still reveal listening sockets.
+The first command lists processes. The second attempts to identify listening TCP sockets using `ss`, falls back to `netstat`, and finally reads `/proc/net/tcp` if neither utility is available.
+
+The `/proc/net/tcp` fallback is less readable and does not provide the same process information as `ss -lntp`.
 
 ## 7. Read Container Logs
+
+**Run on the Docker Host.**
 
 Display all available logs:
 
@@ -161,7 +178,7 @@ Display only the latest 100 lines:
 docker logs --tail 100 NAME
 ```
 
-Follow new log entries:
+Follow new log entries in real time:
 
 ```bash
 docker logs -f NAME
@@ -173,45 +190,49 @@ Include timestamps:
 docker logs --timestamps --tail 100 NAME
 ```
 
-Logs may expose application errors, internal paths, usernames, tokens, database queries, or failed authentication attempts. Avoid following noisy production logs longer than necessary.
+Logs can reveal application errors, service startup details, internal endpoints, authentication failures, and occasionally sensitive information.
 
 ## 8. Execute Commands Inside a Container
 
-Start a shell using `sh`:
+**Run these commands on the Docker Host.** The commands themselves execute inside the specified container.
+
+Start an interactive shell using `sh`:
 
 ```bash
 docker exec -it NAME sh
 ```
 
-Use Bash when it is installed:
+Use Bash if it is installed:
 
 ```bash
 docker exec -it NAME bash
 ```
 
-Run one command non-interactively:
+Run a single command without opening an interactive shell:
 
 ```bash
 docker exec NAME id
 ```
 
-Inspect the container's environment from inside:
+Inspect the environment from inside the container:
 
 ```bash
 docker exec NAME env
 ```
 
-List application files:
+List application files in common directories:
 
 ```bash
 docker exec NAME sh -c 'find /app /opt /srv -maxdepth 3 -type f 2>/dev/null'
 ```
 
-The user reported by `id` is the user inside the container. It should not automatically be treated as the same user or privilege level on the Docker host.
+The `id` command reveals the identity under which the command executes inside the container. Check the user's privileges and accessible files when assessing the container's security boundaries.
 
 ## 9. Inspect Mounts and Volumes
 
-Display bind mounts and named volumes:
+**Run on the Docker Host.**
+
+Display bind mounts and named volumes attached to a container:
 
 ```bash
 docker inspect NAME --format \
@@ -224,39 +245,35 @@ List Docker volumes:
 docker volume ls
 ```
 
-Inspect one volume:
+Inspect a specific volume:
 
 ```bash
 docker volume inspect <VOLUME_NAME>
 ```
 
-Mounted host directories may contain application source code, configuration files, databases, certificates, or credentials. A writable bind mount can also allow a container process to change files on the host, so record both the source and destination paths.
+Mount information shows which host paths or Docker-managed volumes are accessible inside the container. These may contain application source code, configuration files, databases, certificates, or credentials.
+
+Pay particular attention to sensitive host directories mounted into a container and whether the mount is read-write or read-only.
 
 ## 10. Inspect Image and Startup Configuration
 
-Show the configured entrypoint and command:
+**Run on the Docker Host.**
+
+Display the configured entrypoint, command, working directory, and user:
 
 ```bash
 docker inspect NAME --format \
   'Entrypoint={{json .Config.Entrypoint}} Cmd={{json .Config.Cmd}} WorkingDir={{.Config.WorkingDir}} User={{.Config.User}}'
 ```
 
-Display image history:
+Display the image's build history:
 
-```bash
+```
 docker history --no-trunc NAME
 ```
 
-The entrypoint and command reveal what starts when the container runs. The configured user shows whether Docker attempts to run the application as a specific account; an empty value normally means the image default applies, which is commonly `root`.
+The startup configuration shows which command runs when the container starts and which user is configured to run it.
 
-Image history can reveal build commands, filenames, environment variables, or data that was deleted in a later layer. Deleting a file in a later image layer does not necessarily remove its contents from earlier layers.
+Image history may reveal build commands, filenames, environment variables, or other configuration details. Files deleted in later image layers may still be recoverable from earlier layers, depending on how the image was built.
 
-## Quick Enumeration Order
-
-For a fast first pass:
-
-1. Run `docker ps -a` to identify all containers.
-2. Inspect interesting containers with `docker inspect NAME`.
-3. Review environment variables, port mappings, networks, and mounts.
-4. Check processes, listening ports, application files, and logs.
-5. Inspect the image's startup configuration and history.
+**— 0xchnk**
