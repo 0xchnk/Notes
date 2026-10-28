@@ -8,7 +8,7 @@ Download the appropriate Ligolo-ng binaries (`proxy` for the Attacker machine an
 
 For installation instructions and additional options, refer to the [official documentation](https://docs.ligolo.ng/).
 
-In this lab setup, we use `-selfcert` to generate a self-signed TLS certificate automatically when starting the proxy.
+In this note, we use `-selfcert` to generate a self-signed TLS certificate automatically when starting the proxy.
 
 
 ## 1. Create the TUN Interface
