@@ -2,6 +2,15 @@
 
 Ligolo-ng creates a TUN-based tunnel that lets the attack machine route traffic through a reachable target and into an otherwise inaccessible internal network. The proxy runs on the attack machine, while the agent runs on the pivot host.
 
+## Prerequisites
+
+Download the appropriate Ligolo-ng binaries (`proxy` for the Attacker machine and `agent` for the Pivot Host) from the [official GitHub Releases](https://github.com/nicocha30/ligolo-ng/releases). Choose the version matching each machine's operating system and architecture.
+
+For installation instructions and additional options, refer to the [official documentation](https://docs.ligolo.ng/).
+
+In this lab setup, we use `-selfcert` to generate a self-signed TLS certificate automatically when starting the proxy.
+
+
 ## 1. Create the TUN Interface
 
 **Run on the Attacker machine.**
