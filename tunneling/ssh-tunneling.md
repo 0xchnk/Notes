@@ -281,3 +281,6 @@ scp -r <USER>@TARGET_IP:/tmp/results ./results
 |`-R`|SSH server / Target|SSH client / Attacker|Let a remote process reach a service on the Attacker|
 
 When troubleshooting, identify three things separately: **where the listening port opens, which machine resolves the destination host, and whether the destination service is actually listening.**
+
+
+**— 0xchnk**
