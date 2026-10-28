@@ -215,3 +215,6 @@ For port forwarding, the flow depends on which side hosts the listener and which
 - **The port-forwarded service is unreachable:** Check the listener configuration, destination IP and port, the relevant firewall rules, and whether the destination service is listening.
    
 - **The listener command fails:** Check the help output for your installed Ligolo-ng version because command syntax and supported options can differ.
+
+
+**— 0xchnk**
