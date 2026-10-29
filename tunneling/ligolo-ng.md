@@ -166,7 +166,7 @@ For example, suppose a service is running on the attack machine at `127.0.0.1:80
 **Run in the Ligolo-ng proxy console on the Attacker machine:**
 
 ```bash
-listener_add --addr 0.0.0.0:9000 --to 127.0.0.1:8000 --tcp --remote
+listener_add --addr 0.0.0.0:9000 --to 127.0.0.1:8000 --tcp
 ```
 
 The `--remote` option creates the listener on the agent side rather than the attack machine side. In this example, connections reaching port `9000` on the pivot host are forwarded to port `8000` on the attack machine.
