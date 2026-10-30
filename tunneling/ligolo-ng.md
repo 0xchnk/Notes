@@ -94,13 +94,13 @@ Before adding a route, identify the internal subnet reachable from the pivot hos
 Add or replace the route:
 
 ```bash
-sudo ip route replace Internal_IP/24 dev ligolo src OwnIPaddress
+sudo ip route replace Internal_IP/24 dev ligolo
 ```
 
 Replace `Internal_IP/24` with the actual internal network in CIDR notation. For the example above, the command would be:
 
 ```bash
-sudo ip route replace 192.168.98.0/24 dev ligolo src OwnIPaddress
+sudo ip route replace 192.168.98.0/24 dev ligolo
 ```
 
 This tells your attack machine to send traffic destined for that subnet through the `ligolo` interface instead of using its usual route.
