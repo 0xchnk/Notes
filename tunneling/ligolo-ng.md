@@ -10,7 +10,6 @@ For installation instructions and additional options, refer to the [official doc
 
 In this note, we use `-selfcert` to generate a self-signed TLS certificate automatically when starting the proxy.
 
-
 ## 1. Create the TUN Interface
 
 **Run on the Attacker machine.**
@@ -41,7 +40,6 @@ sudo ./proxy -selfcert
 The proxy is the central component running on your attack machine. It accepts incoming agent connections and allows you to establish tunnels through connected pivot hosts.
 
 - `-selfcert` makes the proxy generate and use a self-signed TLS certificate.
-
 - Since the agent command below uses `-ignore-cert`, the agent will accept that certificate without validating its authenticity. This is convenient for an authorized lab, but it does not authenticate the proxy's identity.
 
 **Keep the proxy running** while you perform the remaining steps.
@@ -65,11 +63,18 @@ Now, connect the agent to your attack machine:
 Replace `OUR_IP` with the IP address of your attack machine that the pivot host can reach. For example, use the address of the attack machine's VPN interface if the pivot host can reach it through that network.
 
 - `-connect OUR_IP:11601` tells the agent which IP address and TCP port to connect to.
-
 - `-ignore-cert` accepts the proxy's self-signed certificate without validating it.
-
 - `-retry` makes the agent attempt to reconnect if the connection drops.
 
+### Starting the Agent on a Windows Pivot Host
+
+**Run on the Windows Pivot Host**, from Command Prompt (`cmd.exe`) inside the directory containing `agent.exe`.
+
+```cmd
+start /b .\agent.exe -connect 172.16.5.15:11601 -ignore-cert
+```
+
+Replace `172.16.5.15:11601` with the IP address and port reachable from the Windows host. In a double-pivot scenario, this can be the first pivot's IP and the port on which you configured the Ligolo-ng listener to forward connections to the proxy.
 
 Once the agent connects, return to the **proxy console on the Attacker machine**. Select the agent session and start the tunnel using the Ligolo-ng console commands:
 
@@ -197,7 +202,6 @@ Once everything is configured, the traffic path looks like this:
 4. The Pivot Host sends the traffic toward the internal network from its own network position.
 5. Responses travel back through the established tunnel to the Attacker machine.
 
-
 For port forwarding, the flow depends on which side hosts the listener and which destination you configured. The listener accepts the connection and forwards it to the specified target address and port.
 
 ## Common Problems
@@ -205,16 +209,15 @@ For port forwarding, the flow depends on which side hosts the listener and which
 - **The agent cannot connect:** Confirm that `OUR_IP` is reachable from the Pivot Host and that TCP port `11601` is not blocked. Also, ensure that the proxy is running on the Attacker machine.
 
 - **The agent connects but internal hosts are unreachable:** Confirm that the correct agent session is selected and that the tunnel is running in the proxy console.
-   
+
 - **Traffic uses the wrong interface:** Inspect the route using `ip route get <INTERNAL_IP>` and verify that the correct subnet was entered.
 
 - **The connection drops after sleep or a network change:** Restart the proxy or agent as needed. The agent's `-retry` option attempts reconnection while the process remains running.
-   
+
 - **A route already exists:** `ip route replace` updates the route, but first verify that changing it will not disrupt another active VPN or lab network.
 
 - **The port-forwarded service is unreachable:** Check the listener configuration, destination IP and port, the relevant firewall rules, and whether the destination service is listening.
-   
-- **The listener command fails:** Check the help output for your installed Ligolo-ng version because command syntax and supported options can differ.
 
+- **The listener command fails:** Check the help output for your installed Ligolo-ng version because command syntax and supported options can differ.
 
 **— 0xchnk**
